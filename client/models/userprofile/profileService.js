@@ -1,6 +1,6 @@
 angular.module('profile.service', [])
 
-.factory('ProfileServices', function($http, $window){
+.factory('ProfileServices', function($http, $window, keysFactory){
 
 	var getProfileData = function(){
 		var token = $window.localStorage.getItem('com.gameswap');
@@ -17,15 +17,44 @@ angular.module('profile.service', [])
 		})
 	};
 
+	var getgbdata = function (userGame) {
+		var url = 'http://www.giantbomb.com/api/search/?api_key=' + keysFactory.giantBombKey + '&format=json&query=' + userGame.title +'&resources=game'
+
+	  return $http({
+	  	method: 'JSONP',
+	  	url: url,
+	  	params: {
+	  		format: 'jsonp',
+	  		json_callback: 'JSON_CALLBACK'
+	  	}
+		})
+	  .then(function (gbresults) {
+	  	var gameResults = {};
+	  	var gameArray = [];
+	  	_.each(gbresults.data.results, function(game){
+	  	  _.each(game.platforms, function (platform) {
+	  	    if (platform.name === userGame.platform) {
+	  	    	game.userPlatform = userGame.platform;
+	  	      gameResults[game.name] = game;
+	  	    }
+	  	  });
+	  	});
+	    for(var key in gameResults){
+	      gameArray.push(gameResults[key]);
+	    }
+	    return gameArray;
+	  })
+	}
+
 	var addGameOffering = function(game){
 		var token = $window.localStorage.getItem('com.gameswap');
-
 		return $http({
 			method: 'POST',
 			url: '/addtoofferings',
 			data: {game: game, token: token}
 		})
 		.then(function(resp){
+
 			return resp;
 		}, function(error) {
 			console.error('ERROR!!! ', error);
@@ -75,6 +104,7 @@ angular.module('profile.service', [])
 	};
 
 	return {
+		getgbdata: getgbdata,
 		getProfileData: getProfileData,
 		addGameOffering: addGameOffering,
 		addGameSeeking: addGameSeeking,

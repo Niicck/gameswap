@@ -160,15 +160,26 @@ router.put('/profile/update', auth.checkUser, function(req, res, next) {
   @return 201
 */
 router.post('/addtoofferings', auth.checkUser, function(req, res, next) {
-  var title = req.body.game.title;
-  var platform = req.body.game.platform;
+  var title = req.body.game.name;
+  var platform = req.body.game.userPlatform;
   var condition = 'default condition';
   var description = 'default description';
+  var thumbnail = req.body.game.image.medium_url;
   var rating = 5;
+  var gbid = req.body.game.id;
 
-  db.addGame(title, platform, rating, description, function(success) {
-    db.addOffering(req.user.id, title, platform, condition);
-    res.sendStatus(201);
+  db.addGame(title, platform, rating, description, thumbnail, gbid, function(success, gameId) {
+    if (success) {
+      db.addOffering(req.user.id, title, platform, condition, gameId, function (success) {
+        if (success) {
+          res.sendStatus(201);
+        } else {
+          res.sendStatus(406);
+        }
+      });
+    } else {
+      res.sendStatus(406); //not accepted
+    }
   });
 });
 
@@ -187,16 +198,26 @@ router.post('/searchofferings', function(req, res, next) {
 
 });
 router.post('/addtoseeking', auth.checkUser, function(req, res, next) {
-  var title = req.body.game.title;
-  var platform = req.body.game.platform;
+  var title = req.body.game.name;
+  var platform = req.body.game.userPlatform;
   var description = 'default description';
+  var thumbnail = req.body.game.image.medium_url;
   var rating = 5;
+  var gbid = req.body.game.id;
 
-  db.addGame(title, platform, rating, description, function(success) {
-    db.addSeeking(req.user.id, title, platform);
-    res.sendStatus(201);
+  db.addGame(title, platform, rating, description, thumbnail, gbid, function(success, gameId) {
+    if (success) {
+      db.addSeeking(req.user.id, title, platform, gameId, function (success) {
+        if (success) {
+          res.sendStatus(201);
+        } else {
+          res.sendStatus(406);
+        }
+      });
+    } else {
+      res.sendStatus(406); //not accepted
+    }
   });
-
 });
 
 router.post('/searchseeking', auth.checkUser, function(req, res, next) {
@@ -231,6 +252,51 @@ router.post('/addmessage', auth.checkUser, function(req, res, next) {
   db.addMessage(userfrom, userto, message);
   res.sendStatus(201);
 });
+
+router.get('/allOfferingsByGame', auth.checkUser, function(req, res, next) {
+  var gameid = req.query.gameid;
+  console.log("getting all game offerings for gameid #"+ gameid);
+  db.allOfferingsByGame(gameid, function(data){
+    res.json({users: data})
+  })
+});
+
+//Get all games that are being offered on the app
+router.get('/allOfferings', function(req, res, next) {
+  console.log("getting all game offerings");
+  db.allOfferings(function(data){
+    res.json({games: data})
+  })
+});
+
+//Get all games sought after by user, defaults to logged-in user if none queried
+router.get('/allSeekingByUser', auth.checkUser, function(req, res, next) {
+  var userid = req.query.userid;
+  userid = userid || req.user.id;
+  console.log("getting all game seekings for user #"+ userid);
+  db.allSeekingByUser(userid, function(data){
+    res.json({games: data})
+  })
+});
+
+//Get all games users are willing to trade for inputted game
+router.get('/allWillingToSwap', function(req, res, next) {
+  var gameid = req.query.gameid;
+  console.log("getting all possible trades for game #"+ gameid);
+  db.allWillingToSwap(gameid, function(data){
+    res.json({games: data})
+  })
+});
+
+//Get all games offered by user, defaults to logged-in user if none queried
+router.get('/allOfferingByUser', auth.checkUser, function(req, res, next) {
+  var userid = req.query.userid;
+  userid = userid || req.user.id;
+  db.allOfferingByUser(req.user.id, function(data) {
+    res.json({games: data});
+  });
+})
+
 
 
 module.exports = router;
